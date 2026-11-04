@@ -33,9 +33,21 @@ yarn-error.*
 # local env files
 .env*.local
 
+# local release signing material
+.signing/
+
 # typescript
 *.tsbuildinfo
 
 # generated native folders
 /ios
-/android
+
+# the Android project is tracked; ignore local build state
+/android/local.properties
+/android/.gradle/
+/android/app/build/
+/android/app/.cxx/
+/android/build/
+
+# release artifacts are built locally (the APK is ~74 MB)
+/releases/*.apk

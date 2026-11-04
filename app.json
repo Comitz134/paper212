@@ -1,17 +1,28 @@
 {
   "expo": {
-    "name": "mobile",
-    "slug": "mobile",
+    "name": "Paper212",
+    "slug": "paper212-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "scheme": "paper212",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#070b12",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.paper212.mobile"
     },
     "android": {
+      "package": "com.paper212.mobile",
+      "permissions": [
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.WAKE_LOCK",
+        "android.permission.POST_NOTIFICATIONS"
+      ],
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#070b12",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -20,6 +31,17 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "expo-background-task",
+      "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "color": "#00c805"
+        }
+      ],
+      "expo-font"
+    ]
   }
 }
