@@ -82,7 +82,7 @@ jobs:
           set -euo pipefail
           yes | sdkmanager --licenses >/dev/null 2>&1 || true
           sdkmanager --install \
-            "platforms;android-37" \
+            "platforms;android-36" \
             "build-tools;37.0.0" \
             "ndk;27.1.12297006" \
             "cmake;3.22.1"
@@ -118,6 +118,7 @@ jobs:
           set -euo pipefail
           chmod +x gradlew
           ./gradlew --no-daemon :app:assembleRelease \
+            "-Pandroid.compileSdkVersion=36" \
             "-Ppaper212VersionName=${VERSION}" \
             "-Ppaper212VersionCode=${VERSION_CODE}"
 
