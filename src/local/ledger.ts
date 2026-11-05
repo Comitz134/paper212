@@ -294,6 +294,20 @@ export function normalizeConfig(raw: Partial<LocalConfig> | null | undefined): L
   };
 }
 
+export function scanIsDue(
+  now: Date | string | number,
+  lastScanAt: string | null | undefined,
+  pollSeconds: number,
+  manual = false
+): boolean {
+  if (manual) return true;
+  const date = now instanceof Date ? now : new Date(now);
+  const previous = lastScanAt ? Date.parse(lastScanAt) : 0;
+  if (!Number.isFinite(previous) || previous <= 0) return true;
+  const interval = Math.max(1, Number(pollSeconds) || 0) * 1000;
+  return date.getTime() - previous >= interval;
+}
+
 export function getEtParts(now: Date | string | number = new Date()): EtParts {
   const date = now instanceof Date ? now : new Date(now);
   const values: Record<string, string> = {};

@@ -18,6 +18,7 @@ import {
   normalizeConfig,
   openPosition,
   recordEquity,
+  scanIsDue,
   type LocalAlert,
   type LocalConfig,
   type LocalState,
@@ -234,12 +235,19 @@ function evaluateSymbol(
   });
 }
 
+function nextScanAfter(now: Date) {
+  const previousScan = state.lastScan ? Date.parse(state.lastScan.at) : 0;
+  const next = Number.isFinite(previousScan) && previousScan > 0
+    ? Math.max(now.getTime(), previousScan + config.pollSeconds * 1000)
+    : now.getTime() + config.pollSeconds * 1000;
+  return new Date(next).toISOString();
+}
+
 async function runTick(manual: boolean) {
   await ensureLoaded();
   const now = new Date();
   const clock = ensureSession(state, now, config);
-  const previousRun = state.lastRunAt ? Date.parse(state.lastRunAt) : 0;
-  const due = manual || !previousRun || now.getTime() - previousRun >= config.pollSeconds * 1000;
+  const due = scanIsDue(now, state.lastScan?.at, config.pollSeconds, manual);
   state.runs += 1;
   state.lastRunAt = now.toISOString();
 
@@ -285,7 +293,7 @@ async function runTick(manual: boolean) {
       equity: metrics.equity,
       openPositions: metrics.openPositions,
     };
-    nextRunAt = config.enabled ? new Date(now.getTime() + config.pollSeconds * 1000).toISOString() : null;
+    nextRunAt = config.enabled ? nextScanAfter(now) : null;
   } catch (error) {
     state.lastError = `On-device engine: ${(error as Error)?.message || 'unexpected failure'}`;
     appendOnce('error', state.lastError, now);
@@ -324,7 +332,7 @@ export async function controlLocalEngine(action: 'run' | 'pause' | 'resume'): Pr
     `On-device automation ${action === 'resume' ? 'resumed' : 'paused'} from the app.`,
     now
   );
-  nextRunAt = config.enabled ? new Date(now.getTime() + config.pollSeconds * 1000).toISOString() : null;
+  nextRunAt = config.enabled ? nextScanAfter(now) : null;
   await save();
   return toSnapshot(now);
 }

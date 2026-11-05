@@ -79,9 +79,8 @@ export async function sendTestNotification() {
       body: 'Local alerts are working. This is a paper-trading alert, not a real order.',
       sound: 'default',
       data: { kind: 'test' },
-      ...(Platform.OS === 'android' ? { channelId: ALERT_CHANNEL } : {}),
-    } as Notifications.NotificationContentInput,
-    trigger: null,
+    },
+    trigger: Platform.OS === 'android' ? { channelId: ALERT_CHANNEL } : null,
   });
   return true;
 }
@@ -102,9 +101,8 @@ async function notify(alert: MobileAlert) {
           ...alert.data,
         },
         threadIdentifier: 'paper212',
-        ...(Platform.OS === 'android' ? { channelId: ALERT_CHANNEL } : {}),
-      } as Notifications.NotificationContentInput,
-      trigger: null,
+      },
+      trigger: Platform.OS === 'android' ? { channelId: ALERT_CHANNEL } : null,
     });
   } catch {
     // Alerts must never take down the dashboard.

@@ -11,4 +11,9 @@
 -keep class com.swmansion.reanimated.** { *; }
 -keep class com.facebook.react.turbomodule.** { *; }
 
+# WorkManager opens its generated Room database with reflection. Room's keep
+# rules in this dependency graph do not retain the generated no-arg constructor
+# under R8, so keep the class and its constructor intact for release startup.
+-keep class androidx.work.impl.WorkDatabase_Impl { *; }
+
 # Add any project specific keep options here:

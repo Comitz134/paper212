@@ -10,6 +10,7 @@ import {
   mergeAlerts,
   normalizeConfig,
   openPosition,
+  scanIsDue,
 } from '../src/local/ledger';
 import { evaluateOpeningRange, parseYahooChart, type ParsedChart } from '../src/local/market';
 
@@ -38,6 +39,14 @@ test('the market clock opens the entry window and respects holidays', () => {
   assert.equal(holiday.open, false);
   assert.equal(holiday.entryOpen, false);
   assert.match(holiday.label, /Thanksgiving/);
+});
+
+test('automatic scan cadence is measured from the last scan, not the latest poll', () => {
+  const lastScan = '2026-11-03T15:20:00Z';
+  assert.equal(scanIsDue(new Date('2026-11-03T15:22:50Z'), lastScan, 180), false);
+  assert.equal(scanIsDue(new Date('2026-11-03T15:23:00Z'), lastScan, 180), true);
+  assert.equal(scanIsDue(new Date('2026-11-03T15:22:00Z'), lastScan, 180, true), true);
+  assert.equal(scanIsDue(new Date('2026-11-03T15:22:00Z'), null, 180), true);
 });
 
 test('opening-range scanner triggers only after a completed close above the range', () => {

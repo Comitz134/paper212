@@ -25,10 +25,11 @@ created. There is no PC pairing screen any more.
 ## Android release APK
 
 A signed universal release APK is available at
-`releases/Paper212-1.0.0-release.apk` (77,442,368 bytes, about 74 MB).
+`releases/Paper212-1.0.0-release.apk` (77,491,860 bytes, about 74 MB).
 
 - **Package:** `com.paper212.mobile`, version 1.0.0, min SDK 24, target SDK 36
 - **Signing:** APK Signature Scheme v2, certificate `CN=Paper212`
+- **SHA-256:** `01ac186f648181eec3422701a115b2948fea5dfe67842960e7f6247d742a18a0`
 - **Native ABIs:** `arm64-v8a`, `armeabi-v7a`, `x86`, `x86_64`
 - **Install (from the repository root):**
   `adb install -r mobile/releases/Paper212-1.0.0-release.apk`, or transfer it to
@@ -113,22 +114,38 @@ above was built with the local Android SDK 37.0, build-tools 37.0.0, NDK
 
 ## Verification status
 
-Automated and artifact checks passed on the final tree:
+Verified on the final tree:
 
 - Root server suite: **55/55**
-- Mobile local-engine suite: **5/5**
+- Mobile local-engine suite: **6/6**
 - Mobile TypeScript: **pass**
 - `npx expo-doctor`: **20/20**
-- Android JS export smoke: **pass**
-- APK signature, manifest permissions/scheduler components, and embedded
-  local-engine bundle: **verified**
+- Android release build and embedded JS bundle: **pass**
+- APK: v2 signature `CN=Paper212`, 77,491,860 bytes, SHA-256 above
+- Installed and launched on an Android 15/API 35 emulator (1080x2340,
+  Google Play x86_64 image)
+- First-run and reset ledger: **$100,000**, automation **ON**, zero positions,
+  and all four tabs usable
+- Live Yahoo scan: six symbols and five risk-checked signals; the audit rows
+  recorded explicit skip reasons such as current price below the trigger and
+  order above the $10,000 cap
+- Automatic cadence: scans advanced from **10:44 to 10:47 AM ET** without a
+  manual run, and the final build refreshed automatically at **10:56 AM ET**
+  after a force-stop/relaunch
+- **Pause**, **Resume**, **Run scan**, the **Signals** and **Errors** activity
+  filters, the notification permission prompt and Allow action, a test alert on
+  the dedicated `paper212-alerts` channel, the background-check toggle, reset,
+  and force-stop/relaunch persistence
+- Background checks: **OFF** removed the WorkManager job; **ON** re-registered
+  it with the 15-minute minimum
 
-Device-only checks still required (no Android device is attached; `adb devices`
-is empty):
+Known device/runtime limits:
 
-- Install: `adb install -r mobile/releases/Paper212-1.0.0-release.apk`
-- First launch and local ledger creation
-- Live Yahoo scan and a paper fill
-- Background notification delivery
-
-iOS builds require macOS/Xcode.
+- No live paper fill was observed during verification: the five live signals
+  were either still outside the entry guard or above the order cap, and the
+  later clock window had no fresh intraday bars. Paper fills, stop/target exits,
+  P&L and alert de-duplication are covered by the deterministic mobile tests.
+- Background execution remains OS-controlled. WorkManager registration and
+  local test notification delivery were verified, but a 15-minute background
+  wake was not forced.
+- iOS builds require macOS/Xcode.
