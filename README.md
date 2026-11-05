@@ -117,7 +117,7 @@ above was built with the local Android SDK 37.0, build-tools 37.0.0, NDK
 Verified on the final tree:
 
 - Root server suite: **55/55**
-- Mobile local-engine suite: **9/9**
+- Mobile local-engine suite: **11/11**
 - Mobile TypeScript: **pass**
 - `npx expo-doctor`: **20/20**
 - Android release build and embedded JS bundle: **pass**

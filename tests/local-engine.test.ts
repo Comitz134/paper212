@@ -159,6 +159,39 @@ test('premarket with yesterday’s completed bars is not called a clock mismatch
   assert.doesNotMatch(result.reason, /out of sync|device clock|latest intraday bar|hasn't sent|has not sent/i);
 });
 
+test('a genuine wrong clock is still reported as a clock mismatch', () => {
+  const now = new Date('2026-11-05T15:00:00Z'); // 10:00 ET, Thursday.
+  const stale = evaluateOpeningRange({
+    symbol: 'AAPL',
+    chart: chart(),
+    now,
+    config: CONFIG,
+    cash: 100000,
+    equity: 100000,
+  });
+  assert.equal(stale.status, 'no-data');
+  assert.match(stale.reason, /latest intraday bar is from 2026-11-03/);
+  assert.match(stale.reason, /device clock is out of sync/);
+});
+
+test('partial opening-range bars are reported as incomplete', () => {
+  const now = new Date('2026-11-05T15:00:00Z'); // 10:00 ET, Thursday.
+  const partialBars = [
+    { t: Date.parse('2026-11-05T14:30:00Z') / 1000, o: 100, h: 100.6, l: 99.2, c: 100.1, v: 50000 },
+    { t: Date.parse('2026-11-05T14:35:00Z') / 1000, o: 100.1, h: 100.4, l: 99.5, c: 99.8, v: 30000 },
+  ];
+  const partial = evaluateOpeningRange({
+    symbol: 'AAPL',
+    chart: { ...chart(), bars: partialBars, price: 99.8, marketTime: now.getTime() / 1000 },
+    now,
+    config: CONFIG,
+    cash: 100000,
+    equity: 100000,
+  });
+  assert.equal(partial.status, 'no-data');
+  assert.match(partial.reason, /2 of 3 completed opening-range bars/);
+});
+
 test('missing opening-range data explains stale clocks versus delayed bars', () => {
   const now = new Date('2026-11-05T15:00:00Z'); // 10:00 ET, Thursday.
   const stale = evaluateOpeningRange({
