@@ -43,8 +43,36 @@ contains no old PC server URL, pairing token or broker integration. The only
 app never uses it as a backend.
 
 The 74 MB APK is intentionally **not tracked**: `releases/*.apk` is ignored so
-the repository does not carry the binary. The APK remains at the path above on
-the build machine.
+the repository does not carry the binary. The current v1.0.0 build is attached
+to the [GitHub Release](https://github.com/Comitz134/paper212/releases/tag/v1.0.0).
+
+### Publishing a tagged release
+
+Pushing a version tag such as `v1.1.0` runs
+[`.github/workflows/release-apk.yml`](.github/workflows/release-apk.yml). The
+workflow validates the tag, derives `versionName` from it and `versionCode`
+from the commit count, builds the release APK, verifies the `CN=Paper212`
+signature, and publishes `Paper212-<version>-release.apk` as a GitHub Release.
+
+Add these repository secrets under **Settings -> Secrets and variables ->
+Actions** before pushing the first release tag:
+
+| Secret | Value |
+| --- | --- |
+| `PAPER212_KEYSTORE_BASE64` | Base64-encoded contents of `.signing/paper212-release.jks` |
+| `PAPER212_KEYSTORE_PASSWORD` | Keystore password |
+| `PAPER212_KEY_ALIAS` | Release key alias (`paper212` for the existing key) |
+| `PAPER212_KEY_PASSWORD` | Key password |
+
+The keystore is ignored by Git and must not be committed. The workflow fails
+before building if any of the four secrets is missing, rather than silently
+falling back to the debug key.
+
+For Linux/macOS, create the base64 value without writing a new secret file:
+
+```bash
+base64 -w0 .signing/paper212-release.jks
+```
 
 The generated `android/` project is tracked so the native manifest, permissions
 and release build configuration are reviewable. Generated build outputs and

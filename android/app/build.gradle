@@ -71,6 +71,8 @@ def releaseStoreFile = System.getenv('PAPER212_RELEASE_STORE_FILE')
 def releaseStorePassword = System.getenv('PAPER212_RELEASE_STORE_PASSWORD')
 def releaseKeyAlias = System.getenv('PAPER212_RELEASE_KEY_ALIAS') ?: 'paper212'
 def releaseKeyPassword = System.getenv('PAPER212_RELEASE_KEY_PASSWORD')
+def paper212VersionName = findProperty('paper212VersionName') ?: '1.0.0'
+def paper212VersionCode = (findProperty('paper212VersionCode') ?: '1').toInteger()
 
 /**
  * The preferred build flavor of JavaScriptCore (JSC)
@@ -95,15 +97,18 @@ android {
     // Keep CMake object paths below Windows' 260-character limit.
     externalNativeBuild {
         cmake {
-            buildStagingDirectory = file('C:/p212c')
+            // The short staging path is only needed on Windows due to MAX_PATH.
+            if (System.getProperty('os.name').toLowerCase().contains('windows')) {
+                buildStagingDirectory = file('C:/p212c')
+            }
         }
     }
     defaultConfig {
         applicationId 'com.paper212.mobile'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0.0"
+        versionCode paper212VersionCode
+        versionName paper212VersionName
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
     }
