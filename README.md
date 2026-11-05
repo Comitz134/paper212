@@ -132,6 +132,10 @@ Verified on the final tree:
 - Automatic cadence: scans advanced from **10:44 to 10:47 AM ET** without a
   manual run, and the final build refreshed automatically at **10:56 AM ET**
   after a force-stop/relaunch
+- Seeded deterministic device trade: **99 AAPL filled at $101.00**, exited on the
+  **$99.50 stop**, cash **$99,851.50**, realized **-$148.50**; one Signal, one
+  Fill and one Stop alert with no duplicate notification. The quote fixture was
+  build-tree-only and is absent from this APK.
 - **Pause**, **Resume**, **Run scan**, the **Signals** and **Errors** activity
   filters, the notification permission prompt and Allow action, a test alert on
   the dedicated `paper212-alerts` channel, the background-check toggle, reset,
@@ -141,10 +145,11 @@ Verified on the final tree:
 
 Known device/runtime limits:
 
-- No live paper fill was observed during verification: the five live signals
-  were either still outside the entry guard or above the order cap, and the
-  later clock window had no fresh intraday bars. Paper fills, stop/target exits,
-  P&L and alert de-duplication are covered by the deterministic mobile tests.
+- No live-market paper fill was observed during verification: the five live
+  signals were either still outside the entry guard or above the order cap, and
+  the later clock window had no fresh intraday bars. The seeded device trade
+  above and the deterministic mobile tests cover fills, stop/target exits, P&L
+  and alert de-duplication.
 - Background execution remains OS-controlled. WorkManager registration and
   local test notification delivery were verified, but a 15-minute background
   wake was not forced.
