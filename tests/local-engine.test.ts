@@ -132,6 +132,33 @@ test('paper fills, stop exits, P&L and alert de-duplication are deterministic', 
   assert.deepEqual(second.map((alert) => alert.id), first.map((alert) => alert.id));
 });
 
+test('premarket with yesterday’s completed bars is not called a clock mismatch', () => {
+  const now = new Date('2026-11-05T12:23:00Z'); // 7:23 ET, before the 9:30 open.
+  const previousSessionBars = [
+    { t: Date.parse('2026-11-04T14:30:00Z') / 1000, o: 100, h: 100.6, l: 99.2, c: 100.1, v: 50000 },
+    { t: Date.parse('2026-11-04T14:35:00Z') / 1000, o: 100.1, h: 100.4, l: 99.5, c: 99.8, v: 30000 },
+    { t: Date.parse('2026-11-04T14:40:00Z') / 1000, o: 99.8, h: 100.2, l: 99.6, c: 99.9, v: 28000 },
+  ];
+  const result = evaluateOpeningRange({
+    symbol: 'AAPL',
+    chart: {
+      ...chart(),
+      bars: previousSessionBars,
+      price: 101.1,
+      marketTime: Date.parse('2026-11-04T20:00:00Z') / 1000,
+    },
+    now,
+    config: CONFIG,
+    cash: 100000,
+    equity: 100000,
+  });
+  assert.equal(result.status, 'waiting');
+  assert.match(result.reason, /pre-open|premarket/i);
+  assert.match(result.reason, /2026-11-04/);
+  assert.match(result.reason, /regular session has not opened/i);
+  assert.doesNotMatch(result.reason, /out of sync|device clock|latest intraday bar|hasn't sent|has not sent/i);
+});
+
 test('missing opening-range data explains stale clocks versus delayed bars', () => {
   const now = new Date('2026-11-05T15:00:00Z'); // 10:00 ET, Thursday.
   const stale = evaluateOpeningRange({

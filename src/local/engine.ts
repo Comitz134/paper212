@@ -143,7 +143,11 @@ async function refreshPositionQuotes(
   return { quotes, failed: errors };
 }
 
-async function scanWatchlist(now: Date, clock: ReturnType<typeof getMarketClock>) {
+async function scanWatchlist(
+  now: Date,
+  clock: ReturnType<typeof getMarketClock>,
+  allowEntries = true
+) {
   const symbols = config.watchlist.slice(0, 12);
   const { charts, errors } = await fetchCharts(symbols, '5m');
   let firstError: string | null = null;
@@ -166,7 +170,7 @@ async function scanWatchlist(now: Date, clock: ReturnType<typeof getMarketClock>
 
   state.lastScan = { at: now.toISOString(), results };
   for (const result of results) {
-    if (result.status === 'triggered') {
+    if (result.status === 'triggered' && allowEntries) {
       lastSkip = null;
       if (result.risk !== 'PASS' || !result.plan) {
         appendOnce('skip', `${result.symbol} triggered but risk blocked it: ${result.reason}`, now, result.symbol);
@@ -268,9 +272,10 @@ async function runTick(manual: boolean) {
       manageExits(state, quoteResult.quotes, clock, now, config);
     }
 
-    if (clock.entryOpen && config.enabled && due) {
+    const manualDiagnostic = manual && clock.weekdayOpen && !clock.entryOpen;
+    if ((clock.entryOpen || manualDiagnostic) && config.enabled && due) {
       scanned = true;
-      const scanError = await scanWatchlist(now, clock);
+      const scanError = await scanWatchlist(now, clock, clock.entryOpen);
       if (scanError) {
         hadError = true;
         lastError = scanError;
@@ -280,7 +285,14 @@ async function runTick(manual: boolean) {
     }
 
     if (manual && !clock.entryOpen) {
-      appendActivity(state, 'info', `Manual run completed. ${clock.label}.`, now);
+      appendActivity(
+        state,
+        'info',
+        scanned
+          ? `Manual diagnostic scan completed outside the entry window. ${clock.label}.`
+          : `Manual run completed. ${clock.label}.`,
+        now
+      );
     }
 
     // A successful scan clears the error. Ticks that only poll for positions

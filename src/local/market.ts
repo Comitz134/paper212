@@ -165,6 +165,16 @@ function minutesInEt(timestamp: number) {
   return et.minutes;
 }
 
+function previousTradingDayKey(dateKey: string, config: LocalConfig) {
+  const [year, month, day] = String(dateKey).split('-').map(Number);
+  for (let offset = 1; offset <= 10; offset += 1) {
+    const candidate = new Date(Date.UTC(year, month - 1, day - offset, 17, 0, 0));
+    const candidateEt = getEtParts(candidate);
+    if (getMarketClock(candidate, config).weekdayOpen) return candidateEt.dateKey;
+  }
+  return dateKey;
+}
+
 function roundCents(value: number) {
   return Math.round((value + Number.EPSILON) * 100) / 100;
 }
@@ -246,13 +256,50 @@ export function evaluateOpeningRange({
     const reason = clock.holiday ? `the NYSE is closed today (${clock.holiday})` : 'the NYSE is closed for the weekend';
     return { symbol: ticker, status: 'no-data', reason, risk: null, orderQty: null };
   }
+
+  const latestRawBar = chart.bars.reduce<ChartBar | null>(
+    (latest, bar) => (!latest || bar.t > latest.t ? bar : latest),
+    null
+  );
+  const latestBarEt = latestRawBar ? getEtParts(new Date(latestRawBar.t * 1000)) : null;
+  const quoteEt =
+    chart.marketTime !== null && Number.isFinite(Number(chart.marketTime))
+      ? getEtParts(new Date(Number(chart.marketTime) * 1000))
+      : null;
+  const previousSession = previousTradingDayKey(today, config);
+  const latestBarDate = latestBarEt?.dateKey || null;
+  const quoteDate = quoteEt?.dateKey || null;
+  const futureBar = Boolean(latestBarDate && latestBarDate > today);
+  const oldBar = Boolean(latestBarDate && latestBarDate < previousSession);
+  const futureQuote = Boolean(!latestBarDate && quoteDate && quoteDate > today);
+  const oldQuote = Boolean(!latestBarDate && quoteDate && quoteDate < previousSession);
+  if (futureBar || oldBar || futureQuote || oldQuote) {
+    const fromBar = futureBar || oldBar;
+    const dataDate = fromBar ? latestBarDate : quoteDate;
+    const dataKind = fromBar ? 'intraday bar' : 'quote';
+    return {
+      symbol: ticker,
+      status: 'no-data',
+      reason: `Yahoo's latest ${dataKind} is from ${dataDate}, but this device is on ${today}. The device clock is out of sync with the market data; reset it to real time.`,
+      risk: null,
+      orderQty: null,
+      currentPrice: Number(chart.price) || latestRawBar?.c || null,
+    };
+  }
+
   if (et.minutes < 570) {
+    const latestSession = latestBarEt
+      ? `Yahoo's latest completed session is ${latestBarEt.dateKey}`
+      : quoteEt
+        ? `Yahoo's latest quote is from ${quoteEt.dateKey}`
+        : 'Yahoo has not returned a completed regular-session bar';
     return {
       symbol: ticker,
       status: 'waiting',
-      reason: 'the NYSE opens at 9:30 ET and the 15-minute range is set at 9:45',
+      reason: `${clock.label}. ${latestSession}; today's ${today} regular session has not opened, so there are no opening-range bars yet.`,
       risk: null,
       orderQty: null,
+      currentPrice: Number(chart.price) || latestRawBar?.c || null,
     };
   }
 
@@ -288,22 +335,11 @@ export function evaluateOpeningRange({
     };
   }
   if (rangeBars.length < 3) {
-    const latestRawBar = chart.bars.reduce<ChartBar | null>(
-      (latest, bar) => (!latest || bar.t > latest.t ? bar : latest),
-      null
-    );
-    const latestBarEt = latestRawBar ? getEtParts(new Date(latestRawBar.t * 1000)) : null;
-    const quoteEt =
-      chart.marketTime !== null && Number.isFinite(Number(chart.marketTime))
-        ? getEtParts(new Date(Number(chart.marketTime) * 1000))
-        : null;
     let reason: string;
-    if (latestBarEt && latestBarEt.dateKey !== today) {
-      reason = `Yahoo's latest intraday bar is from ${latestBarEt.dateKey}, but this device is on ${today}. The device clock is out of sync with the market data; reset it to real time.`;
-    } else if (quoteEt && quoteEt.dateKey !== today) {
-      reason = `Yahoo's latest quote is from ${quoteEt.dateKey}, but this device is on ${today}. The device clock is out of sync with the market data; reset it to real time.`;
+    if (latestBarEt && latestBarEt.dateKey === previousSession) {
+      reason = `Yahoo's latest completed session is ${latestBarEt.dateKey}; no completed regular-session bars exist for ${today} yet. This is not a clock mismatch; the opening range is still forming or the feed is delayed.`;
     } else if (bars.length === 0) {
-      reason = `Yahoo returned no completed regular-session bars for ${today}. The live session may still be premarket or the feed is delayed; check the device clock and market hours.`;
+      reason = `Yahoo returned no completed regular-session bars for ${today}; the opening range has not formed yet and the feed may be delayed.`;
     } else if (rangeBars.length === 0) {
       reason = `Yahoo returned bars for ${today}, but none in the 09:30-09:45 opening range. The range cannot be reconstructed from this payload.`;
     } else {

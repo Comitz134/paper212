@@ -25,11 +25,11 @@ created. There is no PC pairing screen any more.
 ## Android release APK
 
 A signed universal release APK is available at
-`releases/Paper212-1.0.0-release.apk` (77,493,580 bytes, about 74 MB).
+`releases/Paper212-1.0.0-release.apk` (77,494,844 bytes, about 74 MB).
 
 - **Package:** `com.paper212.mobile`, version 1.0.0, min SDK 24, target SDK 36
 - **Signing:** APK Signature Scheme v2, certificate `CN=Paper212`
-- **SHA-256:** `58430dfcb36c9f5b94502955a2db0224e1f4c523e35d08533836ff657b7b8bc0`
+- **SHA-256:** `ec8162e0c39178cde99e89f9d4e0371f679e7b6515a3deb2b4cf467b4a459673`
 - **Native ABIs:** `arm64-v8a`, `armeabi-v7a`, `x86`, `x86_64`
 - **Install (from the repository root):**
   `adb install -r mobile/releases/Paper212-1.0.0-release.apk`, or transfer it to
@@ -117,11 +117,11 @@ above was built with the local Android SDK 37.0, build-tools 37.0.0, NDK
 Verified on the final tree:
 
 - Root server suite: **55/55**
-- Mobile local-engine suite: **8/8**
+- Mobile local-engine suite: **9/9**
 - Mobile TypeScript: **pass**
 - `npx expo-doctor`: **20/20**
 - Android release build and embedded JS bundle: **pass**
-- APK: v2 signature `CN=Paper212`, 77,493,580 bytes, SHA-256 above
+- APK: v2 signature `CN=Paper212`, 77,494,844 bytes, SHA-256 above
 - Installed and launched on an Android 15/API 35 emulator (1080x2340,
   Google Play x86_64 image)
 - First-run and reset ledger: **$100,000**, automation **ON**, zero positions,
@@ -146,6 +146,13 @@ Verified on the final tree:
   a rate-limit error instead of `NO-DATA`. Scanner missing-bar reasons now
   distinguish a clock/data-date mismatch, no completed regular-session bars,
   and incomplete opening-range bars.
+- Real-clock premarket diagnostic on the installed production build: at **Nov
+  5, 7:33 AM ET** the manual scan evaluated all six symbols and reported **0
+  triggered / 6 waiting**. Each reason was `Pre-open · entries start 09:45 ET.
+  Yahoo's latest completed session is 2026-11-04; today's 2026-11-05 regular
+  session has not opened, so there are no opening-range bars yet.` No clock
+  mismatch and no legacy opening-range message appeared. Manual scans outside
+  the entry window evaluate data but cannot place entries.
 - **Pause**, **Resume**, **Run scan**, the **Signals** and **Errors** activity
   filters, the notification permission prompt and Allow action, a test alert on
   the dedicated `paper212-alerts` channel, the background-check toggle, reset,
