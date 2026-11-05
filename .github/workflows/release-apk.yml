@@ -141,7 +141,7 @@ jobs:
           apksigner="$build_tools/apksigner"
           aapt="$build_tools/aapt"
 
-          "$apksigner" verify --verbose --print-certs "$apk" | tee "$RUNNER_TEMP/apksigner.txt"
+          "$apksigner" verify --verbose --print-certs "$apk" 2>&1 | tee "$RUNNER_TEMP/apksigner.txt"
           grep -q "Verified using v2 scheme (APK Signature Scheme v2): true" "$RUNNER_TEMP/apksigner.txt"
           grep -Eq "^(V2 Signer: certificate DN|Signer #1 certificate DN): .*CN=Paper212$" "$RUNNER_TEMP/apksigner.txt"
 
