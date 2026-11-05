@@ -13,6 +13,9 @@ import {
 
 const YAHOO_HOSTS = ['https://query2.finance.yahoo.com', 'https://query1.finance.yahoo.com'];
 const REQUEST_TIMEOUT_MS = 12_000;
+const YAHOO_ATTEMPTS_PER_HOST = 2;
+const YAHOO_RETRY_BASE_MS = 600;
+const YAHOO_RATE_LIMIT_MESSAGE = 'Yahoo is rate-limiting market data (HTTP 429). Retry after the next scan.';
 export const BAR_SECONDS = 300;
 
 export interface ChartBar {
@@ -92,36 +95,57 @@ export function parseYahooChart(value: unknown, fallbackSymbol = ''): ParsedChar
   };
 }
 
+function delay(ms: number) {
+  return new Promise<void>((resolve) => setTimeout(resolve, ms));
+}
+
 export async function fetchYahooChart(symbol: string, interval: '1m' | '5m' = '5m', range = '1d') {
   const ticker = String(symbol || '').trim().toUpperCase().replace(/\./g, '-');
   if (!/^[A-Z0-9.\-]{1,15}$/.test(ticker)) throw new Error(`Invalid market symbol: ${symbol}`);
   let lastError: Error | null = null;
+  let rateLimitError: Error | null = null;
   for (const host of YAHOO_HOSTS) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-    try {
-      const response = await fetch(
-        `${host}/v8/finance/chart/${encodeURIComponent(ticker)}?range=${range}&interval=${interval}&includePrePost=false`,
-        {
-          headers: { Accept: 'application/json' },
-          signal: controller.signal,
-        }
-      );
-      if (!response.ok) {
-        lastError = new Error(
-          response.status === 429 ? 'Yahoo is rate-limiting market data.' : `Yahoo returned HTTP ${response.status}.`
+    for (let attempt = 0; attempt < YAHOO_ATTEMPTS_PER_HOST; attempt += 1) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+      try {
+        const response = await fetch(
+          `${host}/v8/finance/chart/${encodeURIComponent(ticker)}?range=${range}&interval=${interval}&includePrePost=false`,
+          {
+            headers: { Accept: 'application/json' },
+            signal: controller.signal,
+          }
         );
-        continue;
+        if (!response.ok) {
+          if (response.status === 429) {
+            rateLimitError = new Error(YAHOO_RATE_LIMIT_MESSAGE);
+            lastError = rateLimitError;
+            if (attempt < YAHOO_ATTEMPTS_PER_HOST - 1) {
+              const retryAfter = Number(response.headers?.get?.('retry-after'));
+              const waitMs =
+                Number.isFinite(retryAfter) && retryAfter > 0
+                  ? Math.min(Math.ceil(retryAfter * 1000), 3000)
+                  : YAHOO_RETRY_BASE_MS;
+              await delay(waitMs);
+              continue;
+            }
+            break;
+          }
+          lastError = new Error(`Yahoo returned HTTP ${response.status}.`);
+          break;
+        }
+        return parseYahooChart(await response.json(), ticker);
+      } catch (error) {
+        const message =
+          (error as Error)?.name === 'AbortError' ? 'Market data request timed out.' : (error as Error)?.message;
+        lastError = new Error(message || 'Could not reach Yahoo market data.');
+      } finally {
+        clearTimeout(timer);
       }
-      return parseYahooChart(await response.json(), ticker);
-    } catch (error) {
-      const message = (error as Error)?.name === 'AbortError' ? 'Market data request timed out.' : (error as Error)?.message;
-      lastError = new Error(message || 'Could not reach Yahoo market data.');
-    } finally {
-      clearTimeout(timer);
+      break;
     }
   }
-  throw new Error(lastError?.message || 'Could not reach Yahoo market data.');
+  throw rateLimitError || lastError || new Error('Could not reach Yahoo market data.');
 }
 
 export async function fetchCharts(symbols: string[], interval: '1m' | '5m' = '5m') {
@@ -264,10 +288,31 @@ export function evaluateOpeningRange({
     };
   }
   if (rangeBars.length < 3) {
+    const latestRawBar = chart.bars.reduce<ChartBar | null>(
+      (latest, bar) => (!latest || bar.t > latest.t ? bar : latest),
+      null
+    );
+    const latestBarEt = latestRawBar ? getEtParts(new Date(latestRawBar.t * 1000)) : null;
+    const quoteEt =
+      chart.marketTime !== null && Number.isFinite(Number(chart.marketTime))
+        ? getEtParts(new Date(Number(chart.marketTime) * 1000))
+        : null;
+    let reason: string;
+    if (latestBarEt && latestBarEt.dateKey !== today) {
+      reason = `Yahoo's latest intraday bar is from ${latestBarEt.dateKey}, but this device is on ${today}. The device clock is out of sync with the market data; reset it to real time.`;
+    } else if (quoteEt && quoteEt.dateKey !== today) {
+      reason = `Yahoo's latest quote is from ${quoteEt.dateKey}, but this device is on ${today}. The device clock is out of sync with the market data; reset it to real time.`;
+    } else if (bars.length === 0) {
+      reason = `Yahoo returned no completed regular-session bars for ${today}. The live session may still be premarket or the feed is delayed; check the device clock and market hours.`;
+    } else if (rangeBars.length === 0) {
+      reason = `Yahoo returned bars for ${today}, but none in the 09:30-09:45 opening range. The range cannot be reconstructed from this payload.`;
+    } else {
+      reason = `Yahoo returned ${rangeBars.length} of 3 completed opening-range bars for ${today}; the remaining bars are delayed.`;
+    }
     return {
       symbol: ticker,
       status: 'no-data',
-      reason: 'Yahoo has not sent all three opening-range bars yet',
+      reason,
       risk: null,
       orderQty: null,
       currentPrice: price,
@@ -308,7 +353,7 @@ export function evaluateOpeningRange({
             hour: 'numeric',
             minute: '2-digit',
           })} ET), $${Math.abs(gap).toFixed(2)} ${gap >= 0 ? 'under' : 'over'} the range high $${rangeHigh.toFixed(2)}`
-        : 'Yahoo has not sent completed opening-range bars yet',
+        : 'Yahoo has not sent any usable bars for this session',
       risk: null,
       orderQty: null,
       currentPrice: price,

@@ -25,11 +25,11 @@ created. There is no PC pairing screen any more.
 ## Android release APK
 
 A signed universal release APK is available at
-`releases/Paper212-1.0.0-release.apk` (77,491,860 bytes, about 74 MB).
+`releases/Paper212-1.0.0-release.apk` (77,493,580 bytes, about 74 MB).
 
 - **Package:** `com.paper212.mobile`, version 1.0.0, min SDK 24, target SDK 36
 - **Signing:** APK Signature Scheme v2, certificate `CN=Paper212`
-- **SHA-256:** `01ac186f648181eec3422701a115b2948fea5dfe67842960e7f6247d742a18a0`
+- **SHA-256:** `58430dfcb36c9f5b94502955a2db0224e1f4c523e35d08533836ff657b7b8bc0`
 - **Native ABIs:** `arm64-v8a`, `armeabi-v7a`, `x86`, `x86_64`
 - **Install (from the repository root):**
   `adb install -r mobile/releases/Paper212-1.0.0-release.apk`, or transfer it to
@@ -117,11 +117,11 @@ above was built with the local Android SDK 37.0, build-tools 37.0.0, NDK
 Verified on the final tree:
 
 - Root server suite: **55/55**
-- Mobile local-engine suite: **6/6**
+- Mobile local-engine suite: **8/8**
 - Mobile TypeScript: **pass**
 - `npx expo-doctor`: **20/20**
 - Android release build and embedded JS bundle: **pass**
-- APK: v2 signature `CN=Paper212`, 77,491,860 bytes, SHA-256 above
+- APK: v2 signature `CN=Paper212`, 77,493,580 bytes, SHA-256 above
 - Installed and launched on an Android 15/API 35 emulator (1080x2340,
   Google Play x86_64 image)
 - First-run and reset ledger: **$100,000**, automation **ON**, zero positions,
@@ -136,6 +136,16 @@ Verified on the final tree:
   **$99.50 stop**, cash **$99,851.50**, realized **-$148.50**; one Signal, one
   Fill and one Stop alert with no duplicate notification. The quote fixture was
   build-tree-only and is absent from this APK.
+- Genuine Yahoo replay: six captured 5-day Yahoo chart responses (391 bars
+  each) were fed through the normal parser/scanner at the completed **Nov 4,
+  10:10 AM ET** session. The scan produced **5 triggered** setups and **1
+  waiting** symbol; AAPL 28, MSFT 18 and SPY 13 filled, TSLA was skipped by the
+  $10,000 cap, and AMZN was skipped below its trigger. The raw replay adapter
+  was build-tree-only and is absent from this APK.
+- Yahoo 429s are retried twice per host with Retry-After/backoff and surface as
+  a rate-limit error instead of `NO-DATA`. Scanner missing-bar reasons now
+  distinguish a clock/data-date mismatch, no completed regular-session bars,
+  and incomplete opening-range bars.
 - **Pause**, **Resume**, **Run scan**, the **Signals** and **Errors** activity
   filters, the notification permission prompt and Allow action, a test alert on
   the dedicated `paper212-alerts` channel, the background-check toggle, reset,
@@ -148,8 +158,9 @@ Known device/runtime limits:
 - No live-market paper fill was observed during verification: the five live
   signals were either still outside the entry guard or above the order cap, and
   the later clock window had no fresh intraday bars. The seeded device trade
-  above and the deterministic mobile tests cover fills, stop/target exits, P&L
-  and alert de-duplication.
+  above, the raw Yahoo replay and the deterministic mobile tests cover fills,
+  stop/target exits, P&L and alert de-duplication. The final emulator clock is
+  real (premarket); the replay uses completed-session Nov 4 Yahoo bars.
 - Background execution remains OS-controlled. WorkManager registration and
   local test notification delivery were verified, but a 15-minute background
   wake was not forced.

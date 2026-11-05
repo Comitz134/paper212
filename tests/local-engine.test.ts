@@ -12,7 +12,7 @@ import {
   openPosition,
   scanIsDue,
 } from '../src/local/ledger';
-import { evaluateOpeningRange, parseYahooChart, type ParsedChart } from '../src/local/market';
+import { evaluateOpeningRange, fetchYahooChart, parseYahooChart, type ParsedChart } from '../src/local/market';
 
 const CONFIG = normalizeConfig({ watchlist: ['AAPL'], pollSeconds: 180 });
 const NOW = new Date('2026-11-03T15:00:00Z'); // 10:00 ET, a Tuesday.
@@ -130,6 +130,63 @@ test('paper fills, stop exits, P&L and alert de-duplication are deterministic', 
   assert.equal(first.filter((alert) => alert.category === 'stop').length, 1);
   assert.equal(second.length, first.length);
   assert.deepEqual(second.map((alert) => alert.id), first.map((alert) => alert.id));
+});
+
+test('missing opening-range data explains stale clocks versus delayed bars', () => {
+  const now = new Date('2026-11-05T15:00:00Z'); // 10:00 ET, Thursday.
+  const stale = evaluateOpeningRange({
+    symbol: 'AAPL',
+    chart: chart(),
+    now,
+    config: CONFIG,
+    cash: 100000,
+    equity: 100000,
+  });
+  assert.equal(stale.status, 'no-data');
+  assert.match(stale.reason, /latest intraday bar is from 2026-11-03/);
+  assert.match(stale.reason, /device clock is out of sync/);
+
+  const partialBars = [
+    { t: Date.parse('2026-11-05T14:30:00Z') / 1000, o: 100, h: 100.6, l: 99.2, c: 100.1, v: 50000 },
+    { t: Date.parse('2026-11-05T14:35:00Z') / 1000, o: 100.1, h: 100.4, l: 99.5, c: 99.8, v: 30000 },
+  ];
+  const partial = evaluateOpeningRange({
+    symbol: 'AAPL',
+    chart: { ...chart(), bars: partialBars, price: 99.8, marketTime: now.getTime() / 1000 },
+    now,
+    config: CONFIG,
+    cash: 100000,
+    equity: 100000,
+  });
+  assert.equal(partial.status, 'no-data');
+  assert.match(partial.reason, /2 of 3 completed opening-range bars/);
+
+  const empty = evaluateOpeningRange({
+    symbol: 'AAPL',
+    chart: { ...chart(), bars: [], price: null, marketTime: now.getTime() / 1000 },
+    now,
+    config: CONFIG,
+    cash: 100000,
+    equity: 100000,
+  });
+  assert.equal(empty.status, 'no-data');
+  assert.match(empty.reason, /no completed regular-session bars for 2026-11-05/);
+  assert.match(empty.reason, /premarket|delayed/);
+});
+
+test('a Yahoo 429 is retried across hosts and surfaces as a rate-limit error', async () => {
+  const originalFetch = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = (async () => {
+    calls += 1;
+    return new Response('', { status: 429, headers: { 'retry-after': '0' } });
+  }) as typeof fetch;
+  try {
+    await assert.rejects(fetchYahooChart('AAPL'), /rate-limiting market data \(HTTP 429\)/i);
+    assert.equal(calls, 4);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test('Yahoo chart parsing keeps only valid OHLC bars', () => {
