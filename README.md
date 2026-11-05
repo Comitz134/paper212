@@ -31,9 +31,9 @@ A signed universal release APK is available at
 - **Signing:** APK Signature Scheme v2, certificate `CN=Paper212`
 - **SHA-256:** `ec8162e0c39178cde99e89f9d4e0371f679e7b6515a3deb2b4cf467b4a459673`
 - **Native ABIs:** `arm64-v8a`, `armeabi-v7a`, `x86`, `x86_64`
-- **Install (from the repository root):**
-  `adb install -r mobile/releases/Paper212-1.0.0-release.apk`, or transfer it to
-  the phone and open it with install-from-unknown-apps enabled.
+- **Install (on the machine that built the APK):**
+  `adb install -r releases/Paper212-1.0.0-release.apk`, or transfer it to the
+  phone and open it with install-from-unknown-apps enabled.
 
 The APK was produced by Gradle from the `expo prebuild` generated `android/`
 project. Its embedded Hermes bundle includes `paper212.local.engine.v1`, the
